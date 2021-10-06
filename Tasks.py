@@ -11,6 +11,18 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sqlite3
 
+con = sqlite3.connect('Tasks.db')
+cur = con.cursor()
+
+# Create or Connect to DataBase
+try:
+    cur.execute('''CREATE TABLE TaskToDo (TaskText TEXT NOT NULL UNIQUE)''')
+    con.commit()
+    cur.execute('''CREATE TABLE TaskDone (TaskText TEXT UNIQUE)''')
+    con.commit()
+    print('[+] Data Base Created')
+except:
+    print('[+] Connection to Data Base Done')
 
 
 
@@ -57,8 +69,6 @@ class Ui_MainWindow(object):
         self.listWidget_2.setObjectName("listWidget_2")
 
         self.listWidget_2.setStyleSheet("background-color: #6D7C92")
-        font = QtGui.QFont()
-        font.setFamily("Lohit Bengali")
         font.setPointSize(14)
         self.listWidget.setFont(font)
         self.listWidget_2.setFont(font)
@@ -71,22 +81,66 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
-        self.X = []
-        for i in range(100):
-            self.X.append(QtWidgets.QListWidgetItem(str(i)+" TEST"))
-            self.X[i].setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
-            self.X[i].setCheckState(QtCore.Qt.Unchecked)
-            #self.X[i].stateChanged.connect(self.Checked)
-            self.listWidget.addItem(self.X[i])
+        self.AddCheckers()
+        self.AddDones()
 
-        
+        self.AddButton.clicked.connect(self.GetText)
         self.listWidget.itemClicked.connect(self.Checked)
+
+    def AddDones(self):
+        Todos = cur.execute('''SELECT * FROM TaskDone''')
+        for i in Todos:
+            self.listWidget_2.addItem(i[0])
+
+    def AddCheckers(self):
+        self.X = []
+        self.Count = 0
+        Todos = cur.execute('''SELECT * FROM TaskToDo''')
+        for i in Todos:
+            self.X.append(QtWidgets.QListWidgetItem(i[0]))
+            self.X[self.Count].setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
+            self.X[self.Count].setCheckState(QtCore.Qt.Unchecked)
+            #self.X[i].stateChanged.connect(self.Checked)
+            self.listWidget.addItem(self.X[self.Count])
+            self.Count += 1
+
+    def AddValueCheckers(self, text):
+        self.X.append(QtWidgets.QListWidgetItem(text))
+        self.X[self.Count].setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
+        self.X[self.Count].setCheckState(QtCore.Qt.Unchecked)
+        #self.X[i].stateChanged.connect(self.Checked)
+        self.listWidget.addItem(self.X[self.Count])
+        self.Count += 1
+
+    def GetText(self):
+        TaskAdd = self.textEdit.toPlainText()
+        if TaskAdd != '':
+            try:
+                cur.execute('''INSERT INTO TaskToDo VALUES(?)''', [TaskAdd])
+                con.commit()
+            except:
+                print('')
+            self.AddValueCheckers(TaskAdd)
 
         
     def Checked(self, item):
-        print(item.currentItem())
         if item.checkState() == 2:
             self.listWidget_2.addItem(item.text())
+            Count_SQL = 0
+            Todos = cur.execute('''SELECT * FROM TaskToDo''')
+            for i in Todos:
+                if i[0] == item.text():
+                    try:
+                        cur.execute('''INSERT INTO TaskDone VALUES(?)''', [item.text()])
+                        con.commit()
+                        cur.execute('''DELETE FROM TaskToDo WHERE TaskText = ?''', [item.text()])
+                        con.commit()
+                        self.listWidget.takeItem(Count_SQL)
+                    except:
+                        self.listWidget.takeItem(Count_SQL)
+                        cur.execute('''DELETE FROM TaskToDo WHERE TaskText = ?''', [item.text()])
+                        con.commit()
+                Count_SQL += 1
 
 
     def retranslateUi(self, MainWindow):
@@ -94,7 +148,7 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
         self.label.setText(_translate("MainWindow", "Task List"))
         self.AddButton.setText(_translate("MainWindow", "Add"))
-        self.AddMoreButton.setText(_translate("MainWindow", "Add it Steps"))
+        self.AddMoreButton.setText(_translate("MainWindow", "Add with Steps"))
         self.label_2.setText(_translate("MainWindow", "Task\'s Completed"))
 
 
